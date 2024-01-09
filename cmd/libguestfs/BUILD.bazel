@@ -1,12 +1,19 @@
 load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
+    "@rules_oci//oci:defs.bzl",
+    "oci_image",
 )
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 pkg_tar(
     name = "entrypoint",
     srcs = [":entrypoint.sh"],
+    mode = "0775",
+    package_dir = "/",
+)
+
+pkg_tar(
+    name = "get-version",
+    srcs = ["//:get-version"],
     mode = "0775",
     package_dir = "/",
 )
@@ -32,29 +39,24 @@ pkg_tar(
     visibility = ["//visibility:public"],
 )
 
-container_image(
+oci_image(
     name = "version-container",
     base = "//:passwd-image",
-    directory = "/",
-    files = [
-        "//:get-version",
-    ],
     tars = [
         "//:passwd-tar",
+        ":get-version",
         "//rpm:libguestfs-tools",
         ":appliance_layer",
         ":entrypoint",
     ],
 )
 
-container_image(
+oci_image(
     name = "libguestfs-tools-image",
-    architecture = select({
-        "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
-        "//conditions:default": "amd64",
-    }),
+    #architecture = select({
+    #    "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
+    #    "//conditions:default": "amd64",
+    #}),
     base = ":version-container",
-    directory = "/",
     entrypoint = ["/entrypoint.sh"],
-    visibility = ["//visibility:public"],
 )

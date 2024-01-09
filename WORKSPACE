@@ -73,15 +73,53 @@ http_archive(
     ],
 )
 
+#http_archive(
+#    name = "io_bazel_rules_docker",
+#    sha256 = "95d39fd84ff4474babaf190450ee034d958202043e366b9fc38f438c9e6c3334",
+#    strip_prefix = "rules_docker-0.16.0",
+#    urls = [
+#        "https://github.com/bazelbuild/rules_docker/releases/download/v0.16.0/rules_docker-v0.16.0.tar.gz",
+#        "https://storage.googleapis.com/builddeps/95d39fd84ff4474babaf190450ee034d958202043e366b9fc38f438c9e6c3334",
+#    ],
+#)
+
 http_archive(
-    name = "io_bazel_rules_docker",
-    sha256 = "95d39fd84ff4474babaf190450ee034d958202043e366b9fc38f438c9e6c3334",
-    strip_prefix = "rules_docker-0.16.0",
+    name = "rules_oci",
+    sha256 = "686f871f9697e08877b85ea6c16c8d48f911bf466c3aeaf108ca0ab2603c7306",
+    strip_prefix = "rules_oci-1.5.1",
+    url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.5.1/rules_oci-v1.5.1.tar.gz",
+)
+
+http_archive(
+    name = "rules_distroless",
+    sha256 = "a3692f952915960c6fa125caa9126935bc402c2f521d775ccb1f62e3142a7cc4",
+    strip_prefix = "rules_distroless-0.1.3",
+    url = "https://github.com/GoogleContainerTools/rules_distroless/releases/download/v0.1.3/rules_distroless-v0.1.3.tar.gz",
+)
+
+http_archive(
+    name = "rules_pkg",
+    sha256 = "8f9ee2dc10c1ae514ee599a8b42ed99fa262b757058f65ad3c384289ff70c4b8",
     urls = [
-        "https://github.com/bazelbuild/rules_docker/releases/download/v0.16.0/rules_docker-v0.16.0.tar.gz",
-        "https://storage.googleapis.com/builddeps/95d39fd84ff4474babaf190450ee034d958202043e366b9fc38f438c9e6c3334",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.9.1/rules_pkg-0.9.1.tar.gz",
+        "https://github.com/bazelbuild/rules_pkg/releases/download/0.9.1/rules_pkg-0.9.1.tar.gz",
     ],
 )
+
+http_archive(
+    name = "aspect_bazel_lib",
+    sha256 = "ac6392cbe5e1cc7701bbd81caf94016bae6f248780e12af4485d4a7127b4cb2b",
+    strip_prefix = "bazel-lib-2.6.1",
+    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.6.1/bazel-lib-v2.6.1.tar.gz",
+)
+#http_archive(
+#    name = "aspect_bazel_lib",
+#    sha256 = "fc8bd670380eaba5314769abbe9fee21d641e3da06d9d26b8073a301f6d62332",
+#    strip_prefix = "bazel-lib-2.1.0",
+#    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.1.0/bazel-lib-v2.1.0.tar.gz",
+#)
+
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
 
 http_archive(
     name = "com_github_ash2k_bazel_tools",
@@ -255,38 +293,71 @@ go_repository(
 
 # override rules_docker issue with this dependency
 # rules_docker 0.16 uses 0.1.4, let's grab by commit
-go_repository(
-    name = "com_github_google_go_containerregistry",
-    commit = "8a2841911ffee4f6892ca0083e89752fb46c48dd",  # v0.1.4
-    importpath = "github.com/google/go-containerregistry",
-)
+#go_repository(
+#    name = "com_github_google_go_containerregistry",
+#    commit = "8a2841911ffee4f6892ca0083e89752fb46c48dd",  # v0.1.4
+#    importpath = "github.com/google/go-containerregistry",
+#)
 
 # bazel docker rules
+#load(
+#    "@io_bazel_rules_docker//container:container.bzl",
+#    "container_image",
+#    "container_pull",
+#)
+#load(
+#    "@io_bazel_rules_docker//repositories:repositories.bzl",
+#    container_repositories = "repositories",
+#)
+
+#container_repositories()
+
+load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
+
+rules_oci_dependencies()
+
 load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_pull",
-)
-load(
-    "@io_bazel_rules_docker//repositories:repositories.bzl",
-    container_repositories = "repositories",
+    "@rules_oci//oci:repositories.bzl",
+    "LATEST_CRANE_VERSION",
+    "oci_register_toolchains",
 )
 
-container_repositories()
+oci_register_toolchains(
+    name = "oci",
+    crane_version = LATEST_CRANE_VERSION,
+)
 
-load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+#load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+#
+#container_deps()
+load("@rules_oci//oci:pull.bzl", "oci_pull")
+load("@rules_distroless//distroless:dependencies.bzl", "rules_distroless_dependencies")
 
-container_deps()
+rules_distroless_dependencies()
+
+load("@rules_pkg//:deps.bzl", "rules_pkg_dependencies")
+
+rules_pkg_dependencies()
+
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
+
+# Required bazel-lib dependencies
+
+aspect_bazel_lib_dependencies()
+
+# Register bazel-lib toolchains
+
+aspect_bazel_lib_register_toolchains()
 
 # Pull go_image_base
-container_pull(
+oci_pull(
     name = "go_image_base",
     digest = "sha256:9d6c97c160bff0f78a443b583811dd0c8dde5c5086fe8fd2aaf2c23ee7e9590a",
     registry = "gcr.io",
     repository = "distroless/base-debian12",
 )
 
-container_pull(
+oci_pull(
     name = "go_image_base_aarch64",
     digest = "sha256:b251ebd844116427f92523668ca5e9f8d803e479eef44705b62090176d5e8cc7",
     registry = "gcr.io",
@@ -297,14 +368,14 @@ container_pull(
 # WARNING: please update any automated process to push this image to quay.io
 # instead of index.docker.io
 # TODO build nfs-server for multi-arch
-container_pull(
+oci_pull(
     name = "nfs-server",
     digest = "sha256:8c1fa882dddb2885c4152e9ce632c466f4b8dce29339455e9b6bfe71f0a3d3ef",
     registry = "quay.io",
     repository = "kubevirtci/nfs-ganesha",  # see https://github.com/slintes/docker-nfs-ganesha
 )
 
-container_pull(
+oci_pull(
     name = "nfs-server_aarch64",
     digest = "sha256:8c1fa882dddb2885c4152e9ce632c466f4b8dce29339455e9b6bfe71f0a3d3ef",
     registry = "quay.io",
@@ -314,29 +385,28 @@ container_pull(
 # Pull fedora container-disk preconfigured with ci tooling
 # like stress and qemu guest agent pre-configured
 # TODO build fedora_with_test_tooling for multi-arch
-container_pull(
+oci_pull(
     name = "fedora_with_test_tooling",
     digest = "sha256:85f7bb99624422dc45b2c203d520a06bfce7a760ef831aafbf0e2bf2b92ebcf4",
     registry = "quay.io",
     repository = "kubevirtci/fedora-with-test-tooling",
 )
 
-container_pull(
+oci_pull(
     name = "alpine_with_test_tooling",
     digest = "sha256:abd71660edffc355520239e8910debfa7491516ee35240f23bba378d9095410c",
     registry = "quay.io",
     repository = "kubevirtci/alpine-with-test-tooling-container-disk",
-    tag = "2211021552-8cca8c0",
 )
 
-container_pull(
+oci_pull(
     name = "fedora_with_test_tooling_aarch64",
     digest = "sha256:f5bcb56c8c3ce6f0801aa897db4691950235e7676d1ae22c64b088def4196701",
     registry = "quay.io",
     repository = "kubevirtci/fedora-with-test-tooling",
 )
 
-container_pull(
+oci_pull(
     name = "alpine-ext-kernel-boot-demo-container-base",
     digest = "sha256:a2ddb2f568bf3814e594a14bc793d5a655a61d5983f3561d60d02afa7bbc56b4",
     registry = "quay.io",
@@ -344,19 +414,19 @@ container_pull(
 )
 
 # TODO build fedora_realtime for multi-arch
-container_pull(
+oci_pull(
     name = "fedora_realtime",
     digest = "sha256:437f4e02986daf0058239f4a282d32304dcac629d5d1b4c75a74025f1ce22811",
     registry = "quay.io",
     repository = "kubevirt/fedora-realtime-container-disk",
 )
 
-load(
-    "@io_bazel_rules_docker//go:image.bzl",
-    _go_image_repos = "repositories",
-)
-
-_go_image_repos()
+#load(
+#    "@io_bazel_rules_docker//go:image.bzl",
+#    _go_image_repos = "repositories",
+#)
+#
+#_go_image_repos()
 
 http_archive(
     name = "io_bazel_rules_container_rpm",

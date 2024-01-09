@@ -1,6 +1,6 @@
 load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
+    "@rules_oci//oci:defs.bzl",
+    "oci_image",
 )
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
@@ -11,33 +11,36 @@ pkg_tar(
     package_dir = "/etc",
 )
 
-container_image(
+pkg_tar(
+    name = "version",
+    srcs = ["//:get-version"],
+    mode = "0644",
+    package_dir = "/",
+)
+
+oci_image(
     name = "version-container",
     base = "//:passwd-image",
-    directory = "/",
-    files = [
-        "//:get-version",
-    ],
     tars = select({
         "@io_bazel_rules_go//go/platform:linux_arm64": [
             ":multipath",
+            ":version",
             "//rpm:pr-helper_aarch64",
         ],
         "//conditions:default": [
             ":multipath",
+            ":version",
             "//rpm:pr-helper_x86_64",
         ],
     }),
 )
 
-container_image(
+oci_image(
     name = "pr-helper",
-    architecture = select({
-        "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
-        "//conditions:default": "amd64",
-    }),
+    #architecture = select({
+    #    "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
+    #    "//conditions:default": "amd64",
+    #}),
     base = ":version-container",
-    directory = "/",
     entrypoint = ["/usr/bin/qemu-pr-helper"],
-    visibility = ["//visibility:public"],
 )

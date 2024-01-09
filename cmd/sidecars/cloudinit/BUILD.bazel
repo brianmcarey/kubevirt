@@ -18,20 +18,27 @@ go_binary(
     visibility = ["//visibility:public"],
 )
 
-load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+
+pkg_tar(
+    name = "preCloudInit",
+    srcs = [":preCloudInitIso"],
+    mode = "0775",
+    package_dir = "/usr/bin",
 )
 
-container_image(
+load(
+    "@rules_oci//oci:defs.bzl",
+    "oci_image",
+)
+
+oci_image(
     name = "example-cloudinit-hook-sidecar-image",
-    architecture = select({
-        "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
-        "//conditions:default": "amd64",
-    }),
+    #architecture = select({
+    #    "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
+    #    "//conditions:default": "amd64",
+    #}),
     base = "//cmd/sidecars:sidecar-shim-image",
-    directory = "/usr/bin",
     entrypoint = ["/sidecar-shim"],
-    files = [":preCloudInitIso"],
-    visibility = ["//visibility:public"],
+    tars = [":preCloudInit"],
 )

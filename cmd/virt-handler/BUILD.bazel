@@ -65,59 +65,102 @@ go_binary(
 )
 
 load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
+    "@rules_oci//oci:defs.bzl",
+    "oci_image",
 )
-load("@io_bazel_rules_docker//contrib:group.bzl", "group_entry", "group_file")
-load("@io_bazel_rules_docker//contrib:passwd.bzl", "passwd_entry", "passwd_file")
+
+#load("@io_bazel_rules_docker//contrib:group.bzl", "group_entry", "group_file")
+#load("@io_bazel_rules_docker//contrib:passwd.bzl", "passwd_entry", "passwd_file")
+load(
+    "@rules_distroless//distroless:defs.bzl",
+    "group",
+    "passwd",
+)
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
-passwd_entry(
-    name = "root-user",
-    gid = 0,
-    home = "/root",
-    info = "root",
-    shell = "/bin/bash",
-    uid = 0,
-    username = "root",
-)
-
-passwd_entry(
-    name = "qemu-user",
-    gid = 107,
-    home = "",
-    shell = "/bin/bash",
-    uid = 107,
-    username = "qemu",
-)
-
-passwd_file(
+passwd(
     name = "passwd",
-    entries = [
-        ":qemu-user",
-        ":root-user",
+    passwds = [
+        dict(
+            gecos = ["root-user"],
+            gid = 0,
+            home = "/root",
+            shell = "/bin/bash",
+            uid = 0,
+            username = "root",
+        ),
+        dict(
+            gecos = ["qemu-user"],
+            gid = 107,
+            home = "",
+            shell = "/bin/bash",
+            uid = 107,
+            username = "qemu",
+        ),
     ],
 )
 
-group_entry(
-    name = "qemu-group",
-    gid = 107,
-    groupname = "qemu",
-)
-
-group_entry(
-    name = "root-group",
-    gid = 0,
-    groupname = "root",
-)
-
-group_file(
+group(
     name = "group",
-    entries = [
-        ":qemu-group",
-        ":root-group",
+    groups = [
+        dict(
+            name = "root",
+            gid = 0,
+            users = ["root"],
+        ),
+        dict(
+            name = "qemu",
+            gid = 107,
+            users = ["qemu"],
+        ),
     ],
 )
+#passwd_entry(
+#    name = "root-user",
+#    gid = 0,
+#    home = "/root",
+#    info = "root",
+#    shell = "/bin/bash",
+#    uid = 0,
+#    username = "root",
+#)
+#
+#passwd_entry(
+#    name = "qemu-user",
+#    gid = 107,
+#    home = "",
+#    shell = "/bin/bash",
+#    uid = 107,
+#    username = "qemu",
+#)
+#
+#passwd_file(
+#    name = "passwd",
+#    entries = [
+#        ":qemu-user",
+#        ":root-user",
+#    ],
+#)
+
+#group_entry(
+#    name = "qemu-group",
+#    gid = 107,
+#    groupname = "qemu",
+#)
+#
+#group_entry(
+#    name = "root-group",
+#    gid = 0,
+#    groupname = "root",
+#)
+#
+#group_file(
+#    name = "group",
+#    entries = [
+#        ":qemu-group",
+#        ":root-group",
+#    ],
+#)
 
 pkg_tar(
     name = "passwd-tar",
@@ -139,40 +182,59 @@ pkg_tar(
     package_dir = "/etc",
 )
 
-container_image(
-    name = "version-container",
-    directory = "/",
-    files = [
+pkg_tar(
+    name = "virt-launcher-tar",
+    srcs = [
         ":virt_launcher.cil",
         "//:get-version",
     ],
+    mode = "0755",
+    package_dir = "/",
+)
+
+pkg_tar(
+    name = "virt-handler-tar",
+    srcs = [
+        ":virt-handler",
+        "//cmd/container-disk-v2alpha:container-disk",
+        "//cmd/virt-chroot",
+    ],
+    mode = "0755",
+    package_dir = "/usr/bin",
+)
+
+oci_image(
+    name = "version-container",
+    base = select({
+        "@io_bazel_rules_go//go/platform:linux_arm64": "@go_image_base_aarch64",
+        "//conditions:default": "@go_image_base",
+    }),
     tars = select({
         "@io_bazel_rules_go//go/platform:linux_arm64": [
             ":passwd-tar",
             ":nsswitch-tar",
+            ":virt-launcher-tar",
             "//rpm:handlerbase_aarch64",
         ],
         "//conditions:default": [
             ":passwd-tar",
             ":nsswitch-tar",
+            ":virt-launcher-tar",
             "//rpm:handlerbase_x86_64",
         ],
     }),
 )
 
-container_image(
+oci_image(
     name = "virt-handler-image",
-    architecture = select({
-        "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
-        "//conditions:default": "amd64",
-    }),
+    #architecture = select({
+    #    "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
+    #    "//conditions:default": "amd64",
+    #}),
     base = ":version-container",
-    directory = "/usr/bin/",
     entrypoint = ["/usr/bin/virt-handler"],
-    files = [
-        ":virt-handler",
-        "//cmd/container-disk-v2alpha:container-disk",
-        "//cmd/virt-chroot",
+    tars = [
+        ":virt-handler-tar",
     ],
     visibility = ["//visibility:public"],
 )

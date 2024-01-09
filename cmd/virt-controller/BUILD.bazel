@@ -23,28 +23,42 @@ go_binary(
     x_defs = version_x_defs(),
 )
 
-load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+
+pkg_tar(
+    name = "version-tar",
+    srcs = ["//:get-version"],
+    mode = "0644",
+    package_dir = "/",
 )
 
-container_image(
+pkg_tar(
+    name = "virt-controller-tar",
+    srcs = [":virt-controller"],
+    mode = "0755",
+    package_dir = "/usr/bin/",
+)
+
+load(
+    "@rules_oci//oci:defs.bzl",
+    "oci_image",
+)
+
+oci_image(
     name = "version-container",
     base = "//:passwd-image",
-    directory = "/",
-    files = ["//:get-version"],
+    tars = ["version-tar"],
 )
 
-container_image(
+oci_image(
     name = "virt-controller-image",
-    architecture = select({
-        "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
-        "//conditions:default": "amd64",
-    }),
+    #architecture = select({
+    #    "@io_bazel_rules_go//go/platform:linux_arm64": "arm64",
+    #    "//conditions:default": "amd64",
+    #}),
     base = ":version-container",
-    directory = "/usr/bin/",
     entrypoint = ["/usr/bin/virt-controller"],
-    files = [":virt-controller"],
+    tars = ["virt-controller-tar"],
     user = "1001",
     visibility = ["//visibility:public"],
 )
