@@ -1,0 +1,36 @@
+--- a/bazeldnf/extensions.bzl
++++ b/bazeldnf/extensions.bzl
+@@ -245,7 +245,9 @@ def _add_rpm_repository(config, rpm, lock_file_json, registered_rpms):
+     if mirrors == None:
+         fail("couldn't resolve %s in %s" % (repository, lock_file_json["repositories"]))
+     href = rpm.pop("urls")[0]
+-    urls = ["%s/%s" % (x, href) for x in mirrors]
++    fallback_urls = rpm.pop("fallback_urls", [])
++    urls = ["%s/%s" % (x, href) for x in mirrors]
++    urls += fallback_urls
+     rpm_repository(
+         name = name,
+         dependencies = dependencies,
+
+# UPSTREAM NOTE
+# This patch should be contributed upstream to rmohr/bazeldnf.
+#
+# The problem: bazeldnf's lock file URL template system constructs URLs as
+#   base_url + "/" + relative_path
+# for each mirror listed under a repository entry. This works fine for multiple
+# mirrors of the same CDN/mirror structure, but cannot accommodate a fallback
+# to a content-addressed store (like GCS builddeps) where the URL path is just
+# the sha256 hash rather than the same relative RPM path.
+#
+# The fix: add a "fallback_urls" field to individual RPM entries in the lock
+# file. These are full pre-formed URLs appended to the mirror-constructed list,
+# allowing Bazel to fall back to them natively (ctx.download tries each URL
+# in order).
+#
+# This pattern is needed by KubeVirt and likely any project that:
+#   1. Pulls RPMs from a rolling upstream (CentOS Stream) that supersedes old
+#      package versions (causing 404s on the mirror URLs), AND
+#   2. Mirrors those RPMs to a content-addressed immutable store (GCS builddeps)
+#      as a stable fallback.
+#
+# Upstream PR: TODO - open PR against https://github.com/rmohr/bazeldnf
