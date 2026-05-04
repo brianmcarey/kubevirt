@@ -118,8 +118,6 @@ use_repo(bazeldnf_rpms, "kubevirt-rpms")
 # - aarch64 (ARM64, CentOS Stream 9/10)
 # - s390x (System Z, CentOS Stream 9/10)
 #
-# These are registered via bazel/toolchain/toolchain.bzl (loaded from BUILD)
-#
 # Configuration via .bazelrc:
 # - Native: bazel build //cmd/virt-api:...
 # - aarch64: bazel build --config=crossbuild-aarch64 //cmd/virt-api:...
@@ -130,6 +128,21 @@ use_repo(bazeldnf_rpms, "kubevirt-rpms")
 
 # Python toolchain defined in //:py_toolchain (root BUILD.bazel)
 register_toolchains("//:py_toolchain")
+
+# Register KubeVirt custom C toolchains.
+# These declare correct cxx_builtin_include_directories for GCC on each platform,
+# which Bazel 9 requires for C compilation in sandbox (absolute path inclusions check).
+# CS10 toolchains are listed first (higher priority, selected via target_settings).
+# Note: register_all_toolchains() in toolchain.bzl uses native.register_toolchains()
+# which is WORKSPACE-only; in Bzlmod, registration must be done here explicitly.
+register_toolchains(
+    "//bazel/toolchain/x86_64-none-linux-gnu:x86_64_linux_toolchain_cs10",
+    "//bazel/toolchain/aarch64-none-linux-gnu:aarch64_linux_toolchain_cs10",
+    "//bazel/toolchain/s390x-none-linux-gnu:s390x_linux_toolchain_cs10",
+    "//bazel/toolchain/s390x-none-linux-gnu:s390x_linux_toolchain",
+    "//bazel/toolchain/aarch64-none-linux-gnu:aarch64_linux_toolchain",
+    "//bazel/toolchain/x86_64-none-linux-gnu:x86_64_linux_toolchain",
+)
 
 # Register Go CGO platforms as execution platforms.
 # Required in Bazel 9+: test toolchain resolution (@@bazel_tools//tools/test:default_test_toolchain_type)
