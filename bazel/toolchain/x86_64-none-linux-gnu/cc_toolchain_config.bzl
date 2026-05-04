@@ -1,3 +1,23 @@
+"""
+C++ Toolchain Configuration for x86_64 (Native x86_64)
+
+This file defines the C++ toolchain for native x86_64 (Intel/AMD 64-bit) builds on Linux.
+
+Architecture: x86_64 (Native Intel/AMD 64-bit)
+Tools: gcc, g++ (native system compiler)
+OS Support: CentOS Stream 9 (GCC 12.x)
+
+Related Files:
+  - cc_toolchain_config_cs10.bzl: CentOS Stream 10 variant (GCC 14.x)
+  - ../aarch64-none-linux-gnu/cc_toolchain_config.bzl: ARM64 cross-compile variant
+  - ../s390x-none-linux-gnu/cc_toolchain_config.bzl: IBM System z cross-compile variant
+  - BUILD: Defines cc_toolchain rule that uses this config
+  - ../toolchain.bzl: Registers all toolchains
+
+Note: This is the native/default toolchain. The file structure matches aarch64 and s390x
+variants for consistency, even though x86_64 does not require cross-compiler tools.
+"""
+
 load("@bazel_tools//tools/build_defs/cc:action_names.bzl", "ACTION_NAMES")
 load(
     "@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl",
@@ -13,6 +33,7 @@ all_link_actions = [
     ACTION_NAMES.cpp_link_nodeps_dynamic_library,
 ]
 
+
 all_compile_actions = [
     ACTION_NAMES.assemble,
     ACTION_NAMES.c_compile,
@@ -27,6 +48,9 @@ all_compile_actions = [
 ]
 
 def _impl(ctx):
+    # Tool paths for native x86_64 builds.
+    # These point to the standard system compiler tools (gcc, g++, etc).
+    # Path: /usr/bin/* (standard system compilers)
     tool_paths = [
         tool_path(
             name = "ar",

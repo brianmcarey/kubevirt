@@ -1,3 +1,26 @@
+"""
+C++ Toolchain Configuration for s390x (IBM System z)
+
+This file defines the C++ toolchain for cross-compiling to s390x (IBM System z / Mainframe) architecture.
+
+Architecture: s390x (IBM System z, Mainframe)
+Tools: s390x-linux-gnu-* (GCC cross-compiler toolchain)
+OS Support: CentOS Stream 9 (GCC 12.x)
+
+Related Files:
+  - cc_toolchain_config_cs10.bzl: CentOS Stream 10 variant (GCC 14.x)
+  - ../aarch64-none-linux-gnu/cc_toolchain_config.bzl: ARM64 variant
+  - ../x86_64-none-linux-gnu/cc_toolchain_config.bzl: Native x86_64 variant
+  - BUILD: Defines cc_toolchain rule that uses this config
+  - ../toolchain.bzl: Registers all toolchains
+
+Note: This file is similar to aarch64 and x86_64 variants. They are separate files
+(not shared) because Bazel rule implementations require per-architecture tool paths
+and sysroot directories. Each architecture has different cross-compiler locations
+and include directories. If adding a new architecture, copy this file and update
+the tool paths and include directories for the new architecture.
+"""
+
 load("@bazel_tools//tools/build_defs/cc:action_names.bzl", "ACTION_NAMES")
 load(
     "@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl",
@@ -7,12 +30,17 @@ load(
     "tool_path",
 )
 
+
+# Action names used for organizing compiler/linker flags.
+# These are predefined by Bazel and correspond to specific compilation/linking phases.
 all_link_actions = [
     ACTION_NAMES.cpp_link_executable,
     ACTION_NAMES.cpp_link_dynamic_library,
     ACTION_NAMES.cpp_link_nodeps_dynamic_library,
 ]
 
+# Compile actions include C/C++ compilation, assembly, and preprocessing.
+# These flags apply to all compilation phases for this toolchain.
 all_compile_actions = [
     ACTION_NAMES.assemble,
     ACTION_NAMES.c_compile,
@@ -27,6 +55,9 @@ all_compile_actions = [
 ]
 
 def _impl(ctx):
+    # Tool paths for cross-compilation to s390x (IBM System z).
+    # These point to the s390x-linux-gnu-* cross-compiler tools installed on the build machine.
+    # Path: /usr/bin/s390x-linux-gnu-* (assumed to be in PATH or fully qualified)
     tool_paths = [
         tool_path(
             name = "ar",
